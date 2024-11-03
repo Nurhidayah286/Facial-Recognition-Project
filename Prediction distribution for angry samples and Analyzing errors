@@ -1,0 +1,74 @@
+def check_angry_predictions(excel_file='validation_results.xlsx'):
+    # Read the Excel file
+    df = pd.read_excel(excel_file)
+
+    # Print the raw data for angry samples
+    print("All rows where True_Label is 'angry':")
+    angry_samples = df[df['True_Label'] == 'angry']
+    print("\nNumber of angry samples:", len(angry_samples))
+
+    # Calculate average probability for angry
+    avg_angry_prob = angry_samples['angry_probability'].mean() * 100
+    print(f"\nAverage 'angry' probability when true label is 'angry': {avg_angry_prob:.1f}%")
+
+    # Show prediction distribution for angry samples
+    print("\nPrediction distribution for angry samples:")
+    probability_columns = [col for col in df.columns if col.endswith('_probability')]
+    predictions = angry_samples[probability_columns].idxmax(axis=1).str.replace('_probability', '')
+    prediction_dist = (predictions.value_counts() / len(predictions) * 100).round(1)
+    print(prediction_dist)
+
+    return angry_samples
+
+# Example usage
+try:
+    angry_data = check_angry_predictions()
+except FileNotFoundError:
+    print("Please make sure 'validation_results.xlsx' exists in the current directory")
+
+def analyze_errors(excel_file='validation_results.xlsx'):
+    # Read the data
+    df = pd.read_excel(excel_file)
+
+    # Get predicted labels
+    probability_columns = [col for col in df.columns if col.endswith('_probability')]
+    df['Predicted_Label'] = df[probability_columns].idxmax(axis=1).str.replace('_probability', '')
+
+    # Find incorrect predictions
+    df['is_correct'] = df['True_Label'] == df['Predicted_Label']
+    incorrect_df = df[~df['is_correct']]
+
+    # Analyze common misclassifications
+    print("Most common misclassification patterns:")
+    misclassification_patterns = pd.crosstab(
+        incorrect_df['True_Label'],
+        incorrect_df['Predicted_Label']
+    ).stack().sort_values(ascending=False).head(10)
+    print(misclassification_patterns)
+
+    # Analyze confidence in wrong predictions
+    print("\nAverage confidence in wrong predictions:")
+    for emotion in df['True_Label'].unique():
+        wrong_predictions = incorrect_df[incorrect_df['True_Label'] == emotion]
+        if len(wrong_predictions) > 0:
+            avg_conf = wrong_predictions[f'{emotion}_probability'].mean()
+            print(f"{emotion}: {avg_conf:.3f}")
+
+    # Plot distribution of probabilities for correct vs incorrect predictions
+    plt.figure(figsize=(12, 6))
+
+    for i, label in enumerate(['Incorrect', 'Correct']):
+        mask = df['is_correct'] if i == 1 else ~df['is_correct']
+        probs = df[mask].apply(lambda row: row[f"{row['True_Label']}_probability"], axis=1)
+        plt.hist(probs, alpha=0.5, label=label, bins=30)
+
+    plt.title('Distribution of Prediction Probabilities')
+    plt.xlabel('Probability')
+    plt.ylabel('Count')
+    plt.legend()
+    plt.show()
+
+    return incorrect_df
+
+# Run the analysis
+incorrect_predictions = analyze_errors()
