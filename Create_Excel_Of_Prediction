@@ -1,0 +1,49 @@
+# Import required libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+
+def create_prediction_visualization(excel_file='validation_results.xlsx'):
+    # Read the Excel file
+    df = pd.read_excel(excel_file)
+
+    # Get the predicted label for each row (emotion with highest probability)
+    probability_columns = [col for col in df.columns if col.endswith('_probability')]
+    df['Predicted_Label'] = df[probability_columns].idxmax(axis=1).str.replace('_probability', '')
+
+    # Create confusion matrix
+    confusion = pd.crosstab(df['True_Label'], df['Predicted_Label'], normalize='index') * 100
+
+    # Create figure with subplots
+    plt.figure(figsize=(15, 6))
+
+    # First subplot for accuracy bar plot
+    plt.subplot(1, 2, 1)
+    accuracy_by_emotion = (df['True_Label'] == df['Predicted_Label']).groupby(df['True_Label']).mean() * 100
+    accuracy_by_emotion.plot(kind='bar')
+    plt.title('Prediction Accuracy by Emotion')
+    plt.xlabel('True Emotion')
+    plt.ylabel('Accuracy (%)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Second subplot for confusion matrix heatmap
+    plt.subplot(1, 2, 2)
+    sns.heatmap(confusion, annot=True, fmt='.1f', cmap='Blues')
+    plt.title('Confusion Matrix (%)')
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+
+    # Display the plot
+    plt.show()
+
+# Example usage
+try:
+    create_prediction_visualization()
+except FileNotFoundError:
+    print("Please make sure 'validation_results.xlsx' exists in the current directory")
+    print("You can modify the excel_file parameter to point to your actual data file")
